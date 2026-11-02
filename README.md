@@ -184,6 +184,10 @@ read what comes out against the controls. **[`eval/README.md`](eval/README.md)**
 that describes the scripts, their output and what each metric means.
 
 ## On the cluster (DTU HPC)
+If you a new to the DTU HPC look at this guide: 
+https://docs.google.com/document/d/1bRtX87ZD7faG1b5CayN5LKUPcn75xmrWt6jFcuwoGMU/edit?tab=t.0
+
+If you do not have a scratch directory on the hpc (eg. /work3), you need to either request access (follow the guide) or wait until Jes has requested storage for the whole course. 
 
 Clone the repo somewhere with room rather than into your home directory, whose quota is small:
 
