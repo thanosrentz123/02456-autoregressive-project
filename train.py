@@ -1,4 +1,6 @@
-"""Train theMLP language model. uv run python train.py
+"""Train the MLP and write a sample set for eval/.
+
+    uv run python train.py
 """
 
 import math
@@ -16,13 +18,13 @@ CONFIG = dict(context_size=3, embed_dim=16, hidden_dims=(256, 256), dropout=0.1)
 BATCH_SIZE = 256
 LEARNING_RATE = 1e-3
 MAX_EPOCHS = 50
-PATIENCE = 5          # epochs without val improvement before stopping
-N_SAMPLES = 256       # match eval/make_controls.py --num
+PATIENCE = 5          # epochs without a better val loss before stopping
+N_SAMPLES = 256       # keep equal to eval/make_controls.py --num
 SEED = 0
 
 
 def device():
-    if torch.backends.mps.is_available():   # Apple silicon
+    if torch.backends.mps.is_available():
         return torch.device("mps")
     if torch.cuda.is_available():
         return torch.device("cuda")
@@ -31,19 +33,19 @@ def device():
 
 @torch.no_grad()
 def evaluate(model, loader, dev):
-    """Mean cross-entropy per real token over a whole split."""
+    """Calculate average loss over non-padding targets."""
     model.eval()
     total, count = 0.0, 0
     for x, x_shifted, _, _ in loader:
         x, x_shifted = x.to(dev), x_shifted.to(dev)
         n = int((x_shifted != -1).sum())
-        total += float(model.loss(x, x_shifted)) * n
+        total += model.loss(x, x_shifted).item() * n
         count += n
     return total / count
 
 
 def unigram_perplexity(dataset):
-    """Baseline: predict the next token from residue frequencies alone."""
+    """Calculate a frequency-only baseline perplexity."""
     counts = Counter()
     for sequence in dataset.df["sequence"]:
         counts.update(sequence)
@@ -94,6 +96,7 @@ def main():
         print(f"epoch {epoch:3d}  train {train_loss:.4f}  val {val_loss:.4f}  "
               f"val ppl {math.exp(val_loss):.3f}")
 
+        # Save the model whenever validation loss improves.
         if val_loss < best - 1e-4:
             best, bad_epochs = val_loss, 0
             torch.save({"state_dict": model.state_dict(), "config": CONFIG},
@@ -111,7 +114,6 @@ def main():
         for row in history:
             f.write("{},{:.6f},{:.6f}\n".format(*row))
 
-    # Sample from the best checkpoint, for eval/eval.py.
     model.load_state_dict(torch.load("runs/mlp.pt")["state_dict"])
     sequences = model.sample(N_SAMPLES, device=dev)
     path = write_sequences("results/sequences/mlp.csv",
