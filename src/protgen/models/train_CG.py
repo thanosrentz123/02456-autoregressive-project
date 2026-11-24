@@ -71,7 +71,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--mode', choices=['train', 'sample'], default='train')
     parser.add_argument('--model-code', default='src/protgen/models/1_2_Transformer_train.py')
-    parser.add_argument('--checkpoint', default='src/protgen/checkpoints/1_2_Transformer_model_trained.pth')
+    parser.add_argument('--checkpoint', default='results/checkpoints/1_2_Transformer_model_trained.pth')
     parser.add_argument('--classifier-checkpoint', default='results/checkpoints/classifier_guidance_best.pt')
     parser.add_argument('--epochs', type=int, default=15)
     parser.add_argument('--batch-size', type=int, default=32)

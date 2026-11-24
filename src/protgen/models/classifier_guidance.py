@@ -11,34 +11,59 @@ AA = "ACDEFGHIKLMNPQRSTVWY"
 TOKEN_TO_AA = {i + 3: aa for i, aa in enumerate(AA)}
 
 
+
 class ProteinClassifier(nn.Module):
-    """Use the final observed token's hidden state to predict AcyP/HPr/HU."""
+    """Predict protein family from a partially observed sequence."""
 
     def __init__(self, transformer):
         super().__init__()
+
         self.transformer = transformer
+
+        # Freeze pretrained Transformer parameters
         for parameter in self.transformer.parameters():
             parameter.requires_grad = False
+
         self.transformer.eval()
-        self.head = nn.Linear(128, 3)
+
+        # Replace the original output layer with a classifier
+        self.head = nn.Linear(transformer.ff1.out_features, 3)
 
     def train(self, mode=True):
         super().train(mode)
-        self.transformer.eval()  # Always freeze Transformer dropout too.
+        self.transformer.eval()
         return self
 
     def forward(self, tokens, lengths):
-        """tokens: [batch,128], BOS+prefix+PAD; lengths: # observed AA (no BOS)."""
+
         with torch.no_grad():
-            positions = torch.arange(tokens.size(1), device=tokens.device)
-            h = self.transformer.seq_embedding(tokens) + self.transformer.pos_embedding(positions)
+
+            positions = torch.arange(
+                tokens.size(1), device=tokens.device
+            )
+
+            h = (
+                self.transformer.seq_embedding(tokens)
+                + self.transformer.pos_embedding(positions)
+            )
+
             padding = tokens.eq(0)
+
             h = self.transformer.dol1(h, padding)
             h = self.transformer.dol2(h, padding)
 
-        # Index 0 is BOS; index `lengths` is the last observed amino acid.
-        last = h[torch.arange(tokens.size(0), device=tokens.device), lengths]
+            # Include pretrained hidden feedforward layer
+            h = self.transformer.ff1(h)
+            h = self.transformer.relu(h)
+
+        # Extract the last observed token
+        last = h[
+            torch.arange(tokens.size(0), device=tokens.device),
+            lengths
+        ]
+
         return self.head(last)
+
 
 
 @torch.no_grad()
